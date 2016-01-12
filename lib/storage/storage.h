@@ -17,4 +17,6 @@ void InitStorage(); //初始化储存引擎
 void* InsertToFreeList(unsigned int size,void * pData);  //向储存引擎插入数据
 void Free(void* pData); //回收内存
 
+void* GetFree(unsigned int n);     //获得可用空间
+void* Free(void* pData);            //释放空间
 #endif // STORAGE_H_INCLUDED
