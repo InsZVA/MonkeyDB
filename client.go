@@ -20,6 +20,7 @@ func main() {
 		buf1 := ""
 		buf2 := ""
 		buf3 := ""
+		buf4 := ""
 		buf := ""
 		fmt.Print("monkey>")
 		fmt.Scanf("%s",&buf1)
@@ -50,6 +51,11 @@ func main() {
 		}else if buf1 == "auth"{
 			fmt.Scanf("%s",&buf2)
 			buf = buf1 + " " + buf2 + " "
+		}else if buf1 == "push"{
+			fmt.Scanf("%s",&buf2)
+			fmt.Scanf("%s",&buf3)
+			fmt.Scanf("%s",&buf4)
+			buf = buf1 + " " + buf2 + " " + buf3 + " " + buf4
 		}
 		s.SendMessage([]byte(buf))
 		buff := s.ReadMessage()

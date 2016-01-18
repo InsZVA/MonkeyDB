@@ -11,12 +11,17 @@ import (
 	"./tcp"
 	"./convert"
 	"reflect"
+	"./minheap"
+	"strconv"
 )
+
+////////////////////////////////////// MinHeap ////////////////////////////////////////////////////////////////
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////// command类型 用于解析处理各种数据库命令 //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 var (
-	acceptedCmd = []string{"set","get","delete","remove","createdb","switchdb","dropdb","push","pop","destroy","listdb"}
+	acceptedCmd = []string{"set","get","delete","remove","createdb","switchdb","dropdb",/*"push","pop","destroy",*/"listdb"}
 )
 
 type command []byte
@@ -98,7 +103,6 @@ func (cmd command) Dropdb(db **C.Database) []byte {
 func (cmd command) Listdb(db **C.Database) []byte {
 	response := []byte{}
 	r := C.ListDB()
-	fmt.Println(r)
 	for i := 0;i < 1024;i++ {
 		b := byte(*(*C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(r))+uintptr(i))))
 		response = append(response,b)
@@ -108,6 +112,29 @@ func (cmd command) Listdb(db **C.Database) []byte {
 	return response
 }
 
+func (cmd command) Push(db **C.Database) []byte {
+	var response []byte
+	key,next := convert.ParseUntil(cmd,' ',5)
+	key2,next := convert.ParseUntil(cmd,' ',next+1)
+	value,_ := convert.ParseUntil(cmd,0,next+1)
+	var i int
+	btnode := C.BTree_search((*db).tIndex,(C.KeyType)(C.GetHash((*C.char)(convert.Bytes2C(key)))),(*C.int)(unsafe.Pointer(&i)))
+	if uintptr(unsafe.Pointer(btnode)) != uintptr(0) {	//B树上有此堆
+		heap := (*minheap.MinHeap)(btnode.pRecord[i])	//BUG GO GC 会回收掉上次的内存
+		k,_ := strconv.Atoi(string(key2))
+		v,_ := strconv.Atoi(string(value))
+		heap.Push(minheap.Pair{Key:uint32(k),Value:uint32(v)})
+		response = []byte("Pushed")
+	}else {					//建一个新的堆
+		heap := minheap.New()
+		C.BTree_insert(&(*db).tIndex, (C.KeyType)(C.GetHash((*C.char)(convert.Bytes2C(key)))), unsafe.Pointer(&heap))
+		k,_ := strconv.Atoi(string(key2))
+		v,_ := strconv.Atoi(string(value))
+		heap.Push(minheap.Pair{Key:uint32(k),Value:uint32(v)})
+		response = []byte("Created and pushed")
+	}
+	return response
+}
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 func initDB() {	//初始化数据库
 	str0 := "monkey"
@@ -205,6 +232,19 @@ func Handler(s *tcp.TCPSession) {
 	
 }
 
+func TranslateMessage2(s *tcp.TCPSession,db **C.Database,message []byte) {
+	com := command(message)
+	response := []byte{}
+	for _,cmd := range acceptedCmd {
+		if convert.StartBy(message,cmd) {
+			result := reflect.ValueOf(com).MethodByName(convert.UpperHead(cmd)).Call([]reflect.Value{reflect.ValueOf(db)})
+			response = result[0].Interface().([]byte)
+		}
+	}
+	s.SendMessage(response)
+}
+
+////////////////////////////////////////Dumplated//////////////////////////////////////////////////////////////////////////
 func TranslateMessage(s *tcp.TCPSession,db **C.Database,message []byte) {
 	command := string(message)
 	params := strings.Split(command," ")
@@ -269,18 +309,6 @@ func TranslateMessage(s *tcp.TCPSession,db **C.Database,message []byte) {
 		C.free(unsafe.Pointer(r))
 	}else {
 		//fmt.Println("unkown command:",params[0])
-	}
-	s.SendMessage(response)
-}
-
-func TranslateMessage2(s *tcp.TCPSession,db **C.Database,message []byte) {
-	com := command(message)
-	response := []byte{}
-	for _,cmd := range acceptedCmd {
-		if convert.StartBy(message,cmd) {
-			result := reflect.ValueOf(com).MethodByName(convert.UpperHead(cmd)).Call([]reflect.Value{reflect.ValueOf(db)})
-			response = result[0].Interface().([]byte)
-		}
 	}
 	s.SendMessage(response)
 }
