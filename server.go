@@ -234,6 +234,7 @@ func Handler(s *tcp.TCPSession) {
 
 func TranslateMessage2(s *tcp.TCPSession,db **C.Database,message []byte) {
 	com := command(message)
+	fmt.Println(string(message))
 	response := []byte{}
 	for _,cmd := range acceptedCmd {
 		if convert.StartBy(message,cmd) {

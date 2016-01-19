@@ -77,22 +77,15 @@ func (s *TCPSession) Recv() {
 }
 
 func (s *TCPSession) SendMessage(bytes []byte) {
-	total := len(bytes) / 1024
-	if len(bytes) % 1024 != 0 {
-		total++
-	}
-	header := uint32bytes(uint32(total))	//计算条数
+	total := len(bytes)
+	header := uint32bytes(uint32(total))	//计算字节数
 	s.ToSend <- header
 	//fmt.Println(header)
-	for i := 0;i < total-1;i++ {
+	for i := 0;i < total - 1024;i += 1024 {
 		buf := bytes[0:1024]	//发送这一段
 		bytes = bytes[1024:]
 		s.ToSend <- buf
 		continue
-	}
-	//发送最后一段
-	if total == 0 {
-		return
 	}
 	buf := bytes[0:]	//发送这一段
 	s.ToSend <- buf
@@ -102,16 +95,15 @@ func (s *TCPSession) ReadMessage() []byte {
 	buf0 := <- s.Received
 	buf := buf0.([]byte)
 	//fmt.Println(buf)
-	total := bytes4uint(buf)
+	total := int(bytes4uint(buf))
 	var buff []byte
 	if buf[4] != 0 {	//两份报表被合并
 		buff = buf[4:]
-		total--
+		total -= 1020
 	} else {
 		buff = []byte{}		
 	}
-
-	for i := uint32(0);i < total;i++ {
+	for i := 0;i < total;i += 1024 {
 		buf0 := <- s.Received
 		buf := buf0.([]byte)
 		buff = append(buff,buf...)
