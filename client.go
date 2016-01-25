@@ -3,10 +3,15 @@ import (
 	"net"
 	"fmt"
 	"./tcp"
+	"flag"
 )
 
+var RemoteAddr = flag.String("r","127.0.0.1:1517","远程服务器地址")
+
 func main() {
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", "127.0.0.1:1517")  
+	flag.Parse()
+	
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", *RemoteAddr)  
     if err != nil {
 		panic(err)
 	}

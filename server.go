@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"./minheap"
 	"strconv"
+	"flag"
 )
 
 ////////////////////////////////////// MinHeap ////////////////////////////////////////////////////////////////
@@ -22,6 +23,7 @@ import (
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 var (
 	acceptedCmd = []string{"set","get","delete","remove","createdb","switchdb","dropdb",/*"push","pop","destroy",*/"listdb"}
+	port = flag.String("p","1517","侦听端口号")
 )
 
 type command []byte
@@ -30,6 +32,7 @@ func (cmd command) Set(db **C.Database) []byte {
 	response := []byte{}
 	key,next := convert.ParseUntil(cmd,' ',4)
 	value,_ := convert.ParseUntil(cmd,0,next+1)
+	//fmt.Println("set ",key,value)
 	r := C.Set(&(*db).tIndex,(*C.char)(convert.Bytes2C(key)),(convert.Bytes2C(value)))
 	for i := 0;;i++ {
 		response = append(response,byte(r.msg[i]))
@@ -145,11 +148,12 @@ func initDB() {	//初始化数据库
 	data := "monkey"
 	db := C.SwitchDB((*C.char)(convert.String2C(str0)))
 	C.Set(&(db.tIndex),(*C.char)(convert.String2C(key)),(convert.String2C(data)))
+	
 }
 
 func listen() {
-	fmt.Println("Server Started!")
-	servicePort := ":1517"
+	
+	servicePort := ":"+*port
 	tcpAddr,err := net.ResolveTCPAddr("tcp4",servicePort)
 	if err != nil {
 		panic(err)
@@ -158,6 +162,7 @@ func listen() {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("Server Started on "+*port+"!")
 	for{
 		conn,err := l.AcceptTCP()
 		conn.SetKeepAlive(true)
@@ -172,6 +177,7 @@ func listen() {
 }
 
 func main() {
+	flag.Parse()
 	initDB()
 	listen()
 }
@@ -234,16 +240,18 @@ func Handler(s *tcp.TCPSession) {
 
 func TranslateMessage2(s *tcp.TCPSession,db **C.Database,message []byte) {
 	com := command(message)
-	fmt.Println(string(message))
+	//fmt.Println("处理：",string(message))
 	response := []byte{}
 	for _,cmd := range acceptedCmd {
 		if convert.StartBy(message,cmd) {
 			result := reflect.ValueOf(com).MethodByName(convert.UpperHead(cmd)).Call([]reflect.Value{reflect.ValueOf(db)})
 			response = result[0].Interface().([]byte)
+			break
 		}
 	}
 	s.SendMessage(response)
 }
+
 
 ////////////////////////////////////////Dumplated//////////////////////////////////////////////////////////////////////////
 func TranslateMessage(s *tcp.TCPSession,db **C.Database,message []byte) {

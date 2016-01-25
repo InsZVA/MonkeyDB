@@ -29,85 +29,86 @@ func uint32bytes(n uint32) []byte {
 
 type TCPSession struct {
 	Conn *net.TCPConn
-	ToSend chan interface{}	//要发送的数据
-	Received chan interface{}	//接受到的数据
+	// ToSend chan interface{}	//要发送的数据
+	// Received chan interface{}	//接受到的数据
 	Closed bool //是否已经关闭
 }
 
 func (s *TCPSession) Init() {
-	s.ToSend = make(chan interface{})
-	s.Received = make(chan interface{})
-	go s.Send()
-	go s.Recv()
+	// s.ToSend = make(chan interface{})
+	// s.Received = make(chan interface{})
+	// go s.Send()
+	// go s.Recv()
 }
 
-func (s *TCPSession) Send() {
-	for {
-		if s.Closed {
-			return
-		}
-		buf0 := <- s.ToSend	//取出要发送的数据
-		buf := buf0.([]byte)
+// func (s *TCPSession) Send() {
+// 	for {
+// 		if s.Closed {
+// 			return
+// 		}
+// 		buf0 := <- s.ToSend	//取出要发送的数据
+// 		buf := buf0.([]byte)
 		
-		_,err := s.Conn.Write(buf)	//发送掉	
-		//fmt.Println("send,",buf)
-		if err != nil {
-			s.Closed = true
-			return
-		}
-	}
+// 		_,err := s.Conn.Write(buf)	//发送掉	
+// 		//fmt.Println("send,",buf)
+// 		if err != nil {
+// 			s.Closed = true
+// 			return
+// 		}
+// 	}
 	
-}
+// }
 
-func (s *TCPSession) Recv() {
-	for {
-		if s.Closed {
-			return
-		}
-		buf := make([]byte,1024)
-		_,err := s.Conn.Read(buf)
-		if err != nil {
-			s.Closed = true
-			return
-		}
-		s.Received <- buf
-		//fmt.Println("read,",buf)
-		}
+// func (s *TCPSession) Recv() {
+// 	for {
+// 		if s.Closed {
+// 			return
+// 		}
+// 		buf := make([]byte,1024)
+// 		_,err := s.Conn.Read(buf)
+// 		if err != nil {
+// 			s.Closed = true
+// 			return
+// 		}
+// 		s.Received <- buf
+// 		//fmt.Println("read,",buf)
+// 		}
 	
-}
+// }
 
 func (s *TCPSession) SendMessage(bytes []byte) {
 	total := len(bytes)
 	header := uint32bytes(uint32(total))	//计算字节数
-	s.ToSend <- header
+	s.Conn.Write(header)
+	//fmt.Println("send:",header)
 	//fmt.Println(header)
 	for i := 0;i < total - 1024;i += 1024 {
 		buf := bytes[0:1024]	//发送这一段
 		bytes = bytes[1024:]
-		s.ToSend <- buf
+		s.Conn.Write(buf)
+		//fmt.Println("send:",buf)
 		continue
 	}
 	buf := bytes[0:]	//发送这一段
-	s.ToSend <- buf
+	s.Conn.Write(buf)
+	//fmt.Println("send:",buf)
 }
 
 func (s *TCPSession) ReadMessage() []byte {
-	buf0 := <- s.Received
-	buf := buf0.([]byte)
+	buf := make([]byte,4)
+	s.Conn.Read(buf)
 	//fmt.Println(buf)
 	total := int(bytes4uint(buf))
 	var buff []byte
-	if buf[4] != 0 {	//两份报表被合并
-		buff = buf[4:]
-		total -= 1020
-	} else {
-		buff = []byte{}		
-	}
-	for i := 0;i < total;i += 1024 {
-		buf0 := <- s.Received
-		buf := buf0.([]byte)
+	buf = make([]byte,1024)
+	for total > 1024 {
+		s.Conn.Read(buf)
 		buff = append(buff,buf...)
+		total -= 1024
 	}
+	buf = make([]byte,total)
+	s.Conn.Read(buf)
+	buff = append(buff,buf...)
 	return buff
 }
 
