@@ -7,33 +7,28 @@ class MonkeyDB
 	{
 		$data = "";
 		$total = 0;
-		$t = fread($this->socket,1024);
+		$t = fread($this->socket,4);
 		for($i = 0;$i < 4;$i++)
 		{
 			$total *= 256;
 			$total += ord($t[$i]);
 		}
-		if(strlen($t) > 4)
-		{
-			$total--;
-			$data = substr($t,4);
-		}
-		while($total > 0)
+		while($total > 1024)
 		{
 			$buf = fread($this->socket,1024);
 			$data .= $buf;
-			$total--;
+			$total-=1024;
 		}
+		$buf = fread($this->socket,$total);
+		$data .= $buf;
 		return $data;
 	}
 	
 	private function write($string)
 	{
 		$total = strlen($string);
-		$n = (int)$total / 1024;
-		if((int)$total % 1024) $n++;
-		fwrite($this->socket,strrev(pack("L",$n)));
-		for($i = 0;$i < $n - 1;$i++)
+		fwrite($this->socket,strrev(pack("L",$total)));
+		for($i = 0;$i < $total - 1024;$i += 1024)
 		{
 			fwrite($this->socket,substr($string,$i * 1024,1024));
 		}
@@ -50,7 +45,7 @@ class MonkeyDB
 			throw new Exception("monkey 连接失败！");
 		}
 		$this->write("auth " . $passwd);
-		echo $this->read();
+		$this->read();
 	}
 	
 	public function __destruct()
@@ -133,6 +128,6 @@ class MonkeyDB
 	}
 }
 
- $monkey = new MonkeyDB("127.0.0.1","monkey");
-  for($i = 0;$i < 100;$i++)
-  	$monkey->set("{$i}","{$i}");
+//  $monkey = new MonkeyDB("127.0.0.1","monkey");
+//   for($i = 0;$i < 100;$i++)
+//   	$monkey->get("{$i}");
