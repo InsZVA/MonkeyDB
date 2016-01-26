@@ -14,7 +14,12 @@ import (
 	"./minheap"
 	"strconv"
 	"flag"
+	"sync"
 )
+
+////////////////////////////////////// 库级锁   ////////////////////////////////////////////////////////////////
+
+var mutex map[C.Database]*sync.RWMutex
 
 ////////////////////////////////////// MinHeap ////////////////////////////////////////////////////////////////
 
@@ -29,6 +34,14 @@ var (
 type command []byte
 
 func (cmd command) Set(db **C.Database) []byte {
+	//锁并发
+	_,ok := mutex[**db];
+	if !ok {
+		mutex[**db] = new(sync.RWMutex)
+	}
+	mutex[**db].Lock()
+	defer mutex[**db].Unlock()
+	
 	response := []byte{}
 	key,next := convert.ParseUntil(cmd,' ',4)
 	value,_ := convert.ParseUntil(cmd,0,next+1)
@@ -42,6 +55,14 @@ func (cmd command) Set(db **C.Database) []byte {
 }
 
 func (cmd command) Get(db **C.Database) []byte {
+	//锁并发
+	_,ok := mutex[**db];
+	if !ok {
+		mutex[**db] = new(sync.RWMutex)
+	}
+	mutex[**db].RLock()
+	defer mutex[**db].RUnlock()
+	
 	response := []byte{}
 	key,_ := convert.ParseUntil(cmd,0,4)
 	r := C.Get(&(*db).tIndex,(*C.char)(convert.Bytes2C(key)))
@@ -60,6 +81,14 @@ func (cmd command) Delete(db **C.Database) []byte {
 }
 
 func (cmd command) Remove(db **C.Database) []byte {
+	//锁并发
+	_,ok := mutex[**db];
+	if !ok {
+		mutex[**db] = new(sync.RWMutex)
+	}
+	mutex[**db].Lock()
+	defer mutex[**db].Unlock()
+	
 	response := []byte{}
 	key,_ := convert.ParseUntil(cmd,0,7)
 	r := C.Delete(&(*db).tIndex,(*C.char)(convert.Bytes2C(key)))
@@ -97,6 +126,14 @@ func (cmd command) Switchdb(db **C.Database) []byte {
 }
 
 func (cmd command) Dropdb(db **C.Database) []byte {
+	//锁并发
+	_,ok := mutex[**db];
+	if !ok {
+		mutex[**db] = new(sync.RWMutex)
+	}
+	mutex[**db].Lock()
+	defer mutex[**db].Unlock()
+	
 	response := []byte{}
 	key,_ := convert.ParseUntil(cmd,0,7)
 	*db = C.DropDB((*C.char)(convert.Bytes2C(key)))
@@ -140,6 +177,7 @@ func (cmd command) Push(db **C.Database) []byte {
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 func initDB() {	//初始化数据库
+	
 	str0 := "monkey"
 	C.CreateDB((*C.char)(convert.String2C(str0)))	//创建基础数据库
 	str0 = "config"						//配置数据库
@@ -178,6 +216,8 @@ func listen() {
 
 func main() {
 	flag.Parse()
+	//初始化锁
+	mutex = make(map[C.Database]*sync.RWMutex)
 	initDB()
 	listen()
 }
