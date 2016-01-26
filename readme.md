@@ -1,6 +1,8 @@
 # MonkeyDB - 高性能的内存缓存数据库
 ## 如何编译
 
+> $ export CC=clang-3.5	//仅支持使用clang-3.5进行编译
+
 > $ go build server.go
 
 > $ go build client.go
