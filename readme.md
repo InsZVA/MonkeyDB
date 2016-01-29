@@ -57,9 +57,10 @@ remove `key`
 
 > $ ./brenchmark
 
-> 10000 set req within  81051620 ns
+> 100000 set req within  85874753 ns
 
-> 10000 get req within  76390221 ns
+> 100000 get req within  71206799 ns
+
 
 每秒处理12w以上请求
 

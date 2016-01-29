@@ -5,6 +5,7 @@ import (
 	"./tcp"
 	"time"
 	"strconv"
+	"runtime"
 )
 
 func uint32bytes(n uint32) []byte {
@@ -18,33 +19,89 @@ func uint32bytes(n uint32) []byte {
 	return header
 }
 
-func main() {
+var	read chan bool
+
+
+func set() {
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", "127.0.0.1:1517")  
-    if err != nil {
+	if err != nil {
 		panic(err)
 	}
-    conn, err := net.DialTCP("tcp", nil, tcpAddr)  
+	conn, err := net.DialTCP("tcp", nil, tcpAddr)  
     if err != nil {
 		panic(err)
 	}
 	s := tcp.TCPSession{Conn:conn}
 	s.Init()
-	s.SendMessage([]byte("auth monkey "));
-	//fmt.Println(string(s.ReadMessage()))
-	start := time.Now().UnixNano()
 	for i := 1;i < 10000;i++ {
 		k := strconv.Itoa(i)
 		data := []byte("set " + k + " " + k+k+k+k+k+k+k+k)
 		s.SendMessage(data)
 		//fmt.Println(string(s.ReadMessage()))
 	}
-	fmt.Println("10000 set req within ",time.Now().UnixNano() - start,"ns")
-	start = time.Now().UnixNano()
+	read <- true
+}
+
+func get() {
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", "127.0.0.1:1517")  
+	if err != nil {
+		panic(err)
+	}
+	conn, err := net.DialTCP("tcp", nil, tcpAddr)  
+    if err != nil {
+		panic(err)
+	}
+	s := tcp.TCPSession{Conn:conn}
+	s.Init()
 	for i := 1;i < 10000;i++ {
 		k := strconv.Itoa(i)
 		data := []byte("get " + k)
 		s.SendMessage(data)
 		//fmt.Println(string(s.ReadMessage()))
 	}
-	fmt.Println("10000 get req within ",time.Now().UnixNano() - start,"ns")
+	read <- true
+}
+
+func main() {
+	read = make(chan bool,runtime.NumCPU())
+	// tcpAddr, err := net.ResolveTCPAddr("tcp4", "127.0.0.1:1517")  
+    // if err != nil {
+	// 	panic(err)
+	// }
+    // conn, err := net.DialTCP("tcp", nil, tcpAddr)  
+    // if err != nil {
+	// 	panic(err)
+	// }
+	// s := tcp.TCPSession{Conn:conn}
+	// s.Init()
+	// s.SendMessage([]byte("auth monkey "));
+	//fmt.Println(string(s.ReadMessage()))
+	start := time.Now().UnixNano()
+	// for i := 1;i < 10000;i++ {
+	// 	k := strconv.Itoa(i)
+	// 	data := []byte("set " + k + " " + k+k+k+k+k+k+k+k)
+	// 	s.SendMessage(data)
+	// 	//fmt.Println(string(s.ReadMessage()))
+	// }
+	for i := 0;i < runtime.NumCPU();i++ {
+		go set()
+	}
+	for i := 0;i < runtime.NumCPU();i++ {
+		<- read
+	}
+	fmt.Println("100000 set req within ",time.Now().UnixNano() - start,"ns")
+	start = time.Now().UnixNano()
+	// for i := 1;i < 10000;i++ {
+	// 	k := strconv.Itoa(i)
+	// 	data := []byte("get " + k)
+	// 	s.SendMessage(data)
+	// 	//fmt.Println(string(s.ReadMessage()))
+	// }
+	for i := 0;i < runtime.NumCPU();i++ {
+		go get()
+	}
+	for i := 0;i < runtime.NumCPU();i++ {
+		<- read
+	}
+	fmt.Println("100000 get req within ",time.Now().UnixNano() - start,"ns")
 }
