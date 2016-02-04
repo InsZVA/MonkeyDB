@@ -79,35 +79,59 @@ func (s *TCPSession) Init() {
 func (s *TCPSession) SendMessage(bytes []byte) {
 	total := len(bytes)
 	header := uint32bytes(uint32(total))	//计算字节数
-	s.Conn.Write(header)
+	_,err := s.Conn.Write(header)
+	if err != nil {
+		s.Closed = true
+		return
+	}
 	//fmt.Println("send:",header)
 	//fmt.Println(header)
 	for i := 0;i < total - 1024;i += 1024 {
 		buf := bytes[0:1024]	//发送这一段
 		bytes = bytes[1024:]
-		s.Conn.Write(buf)
+		_,err := s.Conn.Write(buf)
+		if err != nil {
+			s.Closed = true
+			return
+		}
 		//fmt.Println("send:",buf)
 		continue
 	}
 	buf := bytes[0:]	//发送这一段
-	s.Conn.Write(buf)
+	_,err = s.Conn.Write(buf)
+	if err != nil {
+		s.Closed = true
+		return
+	}
 	//fmt.Println("send:",buf)
 }
 
 func (s *TCPSession) ReadMessage() []byte {
 	buf := make([]byte,4)
-	s.Conn.Read(buf)
+	_,err := s.Conn.Read(buf)
+	if err != nil {
+		s.Closed = true
+		return []byte{}
+	}
 	//fmt.Println(buf)
 	total := int(bytes4uint(buf))
 	var buff []byte
 	buf = make([]byte,1024)
 	for total > 1024 {
-		s.Conn.Read(buf)
+		_,err := s.Conn.Read(buf)
+		if err != nil {
+			s.Closed = true
+			return []byte{}
+		}
 		buff = append(buff,buf...)
 		total -= 1024
 	}
 	buf = make([]byte,total)
-	s.Conn.Read(buf)
+	_,err = s.Conn.Read(buf)
+	if err != nil {
+		s.Closed = true
+		return []byte{}
+	}
 	buff = append(buff,buf...)
 	return buff
 }

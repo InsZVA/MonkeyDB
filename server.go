@@ -254,13 +254,15 @@ func auth(s *tcp.TCPSession) bool {
 }
 
 func Handler(s *tcp.TCPSession) {
+	fmt.Println("Run a new handler to client.")
 	for !auth(s){
 	}
 	str := "monkey"							
 	db := C.SwitchDB((*C.char)(convert.String2C(str)))//环境变量-当前数据库
 	for {
 		if s.Closed {
-			return
+			fmt.Println("Close a client.")
+			break
 		}				
 		buff := s.ReadMessage()
 		// if err != nil {
@@ -268,6 +270,7 @@ func Handler(s *tcp.TCPSession) {
 		// 	break
 		// }
 		if len(buff) == 0 {
+			fmt.Println("Close a client.")
 			return
 		}
 		//commands := bytes.Split(buff,[]byte{0})

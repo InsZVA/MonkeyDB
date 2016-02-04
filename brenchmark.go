@@ -33,6 +33,7 @@ func set() {
 	}
 	s := tcp.TCPSession{Conn:conn}
 	s.Init()
+	s.SendMessage([]byte("auth monkey"))
 	for i := 1;i < 10000;i++ {
 		k := strconv.Itoa(i)
 		data := []byte("set " + k + " " + k+k+k+k+k+k+k+k)
@@ -53,12 +54,14 @@ func get() {
 	}
 	s := tcp.TCPSession{Conn:conn}
 	s.Init()
+	s.SendMessage([]byte("auth monkey"))
 	for i := 1;i < 10000;i++ {
 		k := strconv.Itoa(i)
 		data := []byte("get " + k)
 		s.SendMessage(data)
 		//fmt.Println(string(s.ReadMessage()))
 	}
+	s.Conn.Close()
 	read <- true
 }
 

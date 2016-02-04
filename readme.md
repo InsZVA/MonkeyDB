@@ -53,7 +53,7 @@ remove `key`
 
 ## BrenchMark
 
-在256KB L2Cache CPU + DDR3 1600MHz RAM上的测试结果
+在256KB L2Cache CPU*8 + DDR3 1600MHz RAM上的测试结果
 
 > $ ./brenchmark
 
